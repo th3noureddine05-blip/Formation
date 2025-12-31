@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>One Mobility - Audit Ready V15.0</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { --om-orange: #e67e22; --om-blue: #2c3e50; --success: #27ae60; --danger: #c0392b; --bg: #f4f7f6; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: #333; }
+        .hidden { display: none !important; }
+        header { background: white; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--om-orange); box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 100; }
+        .container { padding: 20px; max-width: 1000px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        #home-view { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #2c3e50, #000); color: white; text-align: center; }
+        .main-btn { border: 2px solid var(--om-orange); padding: 40px; border-radius: 20px; width: 280px; cursor: pointer; margin: 15px; transition: 0.3s; background: rgba(255,255,255,0.05); }
+        .main-btn:hover { background: var(--om-orange); }
+        input, select { padding: 12px; border: 2px solid #ddd; border-radius: 10px; width: 100%; box-sizing: border-box; font-size: 16px; margin-top: 8px; }
+        label { display: block; margin-top: 10px; font-weight: bold; font-size: 13px; color: var(--om-blue); }
+        .q-card { background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; border-left: 8px solid var(--om-orange); }
+        .btn-ans { padding: 15px; border: 2px solid #eee; border-radius: 10px; cursor: pointer; background: white; flex: 1; font-weight: bold; }
+        .btn-action { padding: 15px 25px; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; color: white; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; font-size: 13px; }
+        .badge { padding: 4px 8px; border-radius: 5px; font-weight: bold; color: white; font-size: 11px; }
+        #sig-canvas { border: 2px dashed #ccc; width: 100%; height: 180px; background: #fff; touch-action: none; border-radius: 8px; }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+        .edit-row { background: #f9f9f9; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; border-radius: 5px; border: 1px solid #ddd; align-items: center; }
+    </style>
+</head>
+<body>
+
+    <div id="home-view">
+        <img src="https://i.ibb.co/v4m0YmH/One-Mobility.png" height="80" style="margin-bottom: 20px;">
+        <h1>SYSTEME D'ÉVALUATION</h1>
+        <div style="display:flex; flex-wrap:wrap; justify-content:center">
+            <div class="main-btn" onclick="showSection('setup-view')"><h2>OPÉRATEUR</h2><p>Lancer un test</p></div>
+            <div class="main-btn" onclick="openAdmin()"><h2>FORMATEUR</h2><p>Gestion & Stats</p></div>
+        </div>
+    </div>
+
+    <div id="admin-login-modal" class="modal-overlay hidden">
+        <div class="card" style="width:320px; text-align:center;">
+            <h3>Accès Formateur</h3>
+            <input type="password" id="admin-password-input" placeholder="••••" style="text-align:center; font-size:24px;">
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn-action" style="background:var(--success); flex:1" onclick="checkAdminPassword()">Entrer</button>
+                <button class="btn-action" style="background:var(--danger); flex:1" onclick="closeAdminLogin()">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-view" class="hidden">
+        <header><div style="font-weight:bold">Espace Formateur</div><button onclick="location.reload()">Quitter</button></header>
+        <div class="container">
+            
+            <div class="card">
+                <h3 style="margin-top:0; color:var(--om-orange)">Gestion des Questions</h3>
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <select id="edit-theme-select" onchange="renderEditList()" style="flex:2"></select>
+                    <button onclick="let n = prompt('Nom du module :'); if(n){DB[n]=[]; saveDB(); location.reload();}" style="flex:1"> + Module</button>
+                </div>
+                <div style="background:#f0f2f5; padding:15px; border-radius:10px;">
+                    <input type="text" id="new-q-fr" placeholder="Question en Français">
+                    <input type="text" id="new-q-ar" placeholder="السؤال بالعربية" dir="rtl">
+                    <select id="new-q-ans"><option value="true">Réponse: VRAI</option><option value="false">Réponse: FAUX</option></select>
+                    <button onclick="addNewQ()" class="btn-action" style="background:var(--om-blue); width:100%; margin-top:10px;">Ajouter la question</button>
+                </div>
+                <div id="edit-list" style="margin-top:15px; max-height:200px; overflow-y:auto;"></div>
+            </div>
+
+            <div class="card" style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button onclick="exportFullBackup()" class="btn-action" style="background:#2980b9">Backup DB</button>
+                <input type="file" id="importFile" style="display:none" onchange="importBackup(event)">
+                <button onclick="document.getElementById('importFile').click()" class="btn-action" style="background:#7f8c8d">Restaurer DB</button>
+                <button onclick="exportToCSV()" class="btn-action" style="background:var(--success)">Export Excel</button>
+                <button onclick="clearAllLogs()" class="btn-action" style="background:var(--danger)">Reset Logs</button>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-top:0">Registre des Résultats</h3>
+                <input type="text" id="fMat" onkeyup="updateAdminDashboard()" placeholder="Rechercher...">
+                <div style="overflow-x:auto">
+                    <table>
+                        <thead>
+                            <tr><th>Date Test</th><th>Matricule</th><th>Nom</th><th>Embauche</th><th>Session</th><th>Score</th><th>Action</th></tr>
+                        </thead>
+                        <tbody id="admin-body"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="setup-view" class="hidden">
+        <header><div>Identification</div><button onclick="location.reload()">Retour</button></header>
+        <div class="container">
+            <div class="card" style="max-width:450px; margin: auto;">
+                <label>Matricule / رقم التسجيل</label><input id="mat" type="number">
+                <label>Nom & Prénom / الإسم الكامل</label><input id="nom" type="text">
+                <label>Date d'embauche / تاريخ التوظيف</label><input id="date_embauche" type="date">
+                <label>Module / الوحدة</label><select id="theme_select"></select>
+                <button class="btn-action" style="background:var(--om-orange); width:100%; margin-top:25px" onclick="startQuiz()">LANCER LE TEST</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="quiz-view" class="hidden">
+        <header><div id="active-theme"></div><div id="timer">15:00</div></header>
+        <div class="container">
+            <div id="questions-list"></div>
+            <div class="card">
+                <h3>Signature Obligatoire</h3>
+                <canvas id="sig-canvas"></canvas>
+                <button onclick="clearSig()">Effacer</button>
+            </div>
+            <button class="btn-action" style="background:var(--success); width:100%; padding:20px;" onclick="submitTest()">VALIDER LE TEST</button>
+        </div>
+    </div>
+
+    <script>
+        // --- DATABASE ---
+        const defaultDB = { "Standard": [{f: "Exemple de question ?", a: "سؤال تجريبي ؟", r: true}] };
+        let DB = JSON.parse(localStorage.getItem('OM_DB')) || defaultDB;
+        let userAnswers = [], sigCtx, canvas, currentModule, timerInterval;
+
+        function saveDB() { localStorage.setItem('OM_DB', JSON.stringify(DB)); }
+
+        function showSection(id) {
+            document.querySelectorAll('body > div:not(header)').forEach(div => div.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            const opts = Object.keys(DB).map(t => `<option value="${t}">${t}</option>`).join('');
+            if(id === 'setup-view') document.getElementById('theme_select').innerHTML = opts;
+            if(id === 'admin-view') { document.getElementById('edit-theme-select').innerHTML = opts; renderEditList(); }
+        }
+
+        function openAdmin() { document.getElementById('admin-login-modal').classList.remove('hidden'); }
+        function closeAdminLogin() { document.getElementById('admin-login-modal').classList.add('hidden'); }
+        function checkAdminPassword() {
+            if(document.getElementById('admin-password-input').value === "123") {
+                closeAdminLogin(); showSection('admin-view'); updateAdminDashboard();
+            } else { alert("Code incorrect"); }
+        }
+
+        // --- EDIT QUESTIONS ---
+        function renderEditList() {
+            const t = document.getElementById('edit-theme-select').value;
+            const container = document.getElementById('edit-list');
+            if(!DB[t]) return;
+            container.innerHTML = DB[t].map((q, i) => `
+                <div class="edit-row">
+                    <span style="font-size:12px">Q${i+1}: ${q.f.substring(0,25)}...</span>
+                    <button onclick="if(confirm('Supprimer?')){DB['${t}'].splice(${i},1); saveDB(); renderEditList();}" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold">X</button>
+                </div>`).join('');
+        }
+        function addNewQ() {
+            const t = document.getElementById('edit-theme-select').value;
+            const f = document.getElementById('new-q-fr').value;
+            const a = document.getElementById('new-q-ar').value;
+            const r = document.getElementById('new-q-ans').value === "true";
+            if(!f || !a) return alert("Remplissez les deux langues");
+            DB[t].push({f, a, r}); saveDB(); renderEditList();
+            document.getElementById('new-q-fr').value=""; document.getElementById('new-q-ar').value="";
+        }
+
+        // --- TEST LOGIC ---
+        function startQuiz() {
+            const m = document.getElementById('mat').value;
+            const n = document.getElementById('nom').value;
+            const e = document.getElementById('date_embauche').value;
+            if(!m || !n || !e) return alert("Veuillez remplir toutes les informations");
+            currentModule = document.getElementById('theme_select').value;
+            if(DB[currentModule].length === 0) return alert("Ce module est vide");
+            showSection('quiz-view');
+            document.getElementById('active-theme').innerText = currentModule;
+            userAnswers = new Array(DB[currentModule].length).fill(null);
+            document.getElementById('questions-list').innerHTML = DB[currentModule].map((q, i) => `
+                <div class="q-card">
+                    <b>${i+1}. ${q.f}</b><br><small dir="rtl">${q.a}</small>
+                    <div style="display:flex; gap:10px; margin-top:10px">
+                        <button class="btn-ans" id="v-${i}" onclick="userAnswers[${i}]=true; this.style.background='var(--om-orange)'; document.getElementById('f-${i}').style.background='white';">VRAI</button>
+                        <button class="btn-ans" id="f-${i}" onclick="userAnswers[${i}]=false; this.style.background='var(--om-orange)'; document.getElementById('v-${i}').style.background='white';">FAUX</button>
+                    </div>
+                </div>`).join('');
+            initSignature(); startTimer(900);
+        }
+
+        function startTimer(d) {
+            let t = d; timerInterval = setInterval(() => {
+                let m = parseInt(t/60), s = parseInt(t%60);
+                document.getElementById('timer').innerText = `${m}:${s<10?'0':''}${s}`;
+                if(--t < 0) { clearInterval(timerInterval); submitTest(); }
+            }, 1000);
+        }
+
+        function submitTest() {
+            if(userAnswers.includes(null)) return alert("Répondez à toutes les questions");
+            clearInterval(timerInterval);
+            const score = Math.round((userAnswers.filter((a,i) => a === DB[currentModule][i].r).length / DB[currentModule].length) * 100);
+            let logs = JSON.parse(localStorage.getItem('OM_LOGS')) || [];
+            logs.push({
+                date: new Date().toLocaleDateString('fr-FR'),
+                mat: document.getElementById('mat').value,
+                nom: document.getElementById('nom').value,
+                embauche: document.getElementById('date_embauche').value,
+                theme: currentModule,
+                score: score, status: score >= 75 ? "CONFORME" : "NON CONFORME",
+                attempt: logs.filter(l => l.mat === document.getElementById('mat').value && l.theme === currentModule).length + 1,
+                ans: [...userAnswers], questions: JSON.parse(JSON.stringify(DB[currentModule])),
+                sig: canvas.toDataURL()
+            });
+            localStorage.setItem('OM_LOGS', JSON.stringify(logs));
+            alert("Évaluation terminée avec succès !"); location.reload();
+        }
+
+        function updateAdminDashboard() {
+            const logs = JSON.parse(localStorage.getItem('OM_LOGS')) || [];
+            const f = document.getElementById('fMat').value.toLowerCase();
+            const filtered = logs.filter(l => l.mat.includes(f) || l.nom.toLowerCase().includes(f));
+            document.getElementById('admin-body').innerHTML = filtered.slice().reverse().map((l, i) => `
+                <tr><td>${l.date}</td><td>${l.mat}</td><td>${l.nom}</td><td>${l.embauche}</td><td>Test n°${l.attempt}</td>
+                <td><span class="badge" style="background:${l.score>=75?'var(--success)':'var(--danger)'}">${l.score}%</span></td>
+                <td><button onclick="downloadPDF_Full(${logs.indexOf(l)})">PDF</button></td></tr>`).join('');
+        }
+
+        // --- PDF ORGANISÉ POUR AUDIT ---
+        function downloadPDF_Full(idx) {
+            const l = JSON.parse(localStorage.getItem('OM_LOGS'))[idx];
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(230, 126, 34);
+            doc.text("ONE MOBILITY", 105, 20, { align: "center" });
+            doc.setFontSize(14); doc.setTextColor(44, 62, 80); doc.text("FICHE D'ÉVALUATION DES COMPÉTENCES", 105, 30, { align: "center" });
+            doc.line(20, 35, 190, 35);
+
+            doc.setFontSize(11); doc.setTextColor(0);
+            doc.text(`Candidat : ${l.nom}`, 20, 45);
+            doc.text(`Matricule : ${l.mat}`, 20, 52);
+            doc.text(`Date d'embauche : ${l.embauche}`, 20, 59);
+            doc.text(`Date du Test : ${l.date}`, 130, 45);
+            doc.setTextColor(230, 126, 34); doc.text(`Test :  n°${l.attempt}`, 130, 52);
+            
+            const isOk = l.score >= 75;
+            doc.setTextColor(isOk ? 39 : 192, isOk ? 174 : 57, isOk ? 96 : 43);
+            doc.text(`Score Final : ${l.score}% (${l.status})`, 130, 59);
+
+            doc.autoTable({
+                startY: 68,
+                head: [['#', 'Critères d\'évaluation', 'Réponse', 'Résultat']],
+                body: l.questions.map((q, i) => [i + 1, q.f, l.ans[i] ? "VRAI" : "FAUX", (l.ans[i] === q.r) ? "CONFORME" : "NON CONFORME"]),
+                theme: 'grid', headStyles: { fillColor: [44, 62, 80] },
+                didParseCell: function(data) {
+                    if (data.column.index === 3 && data.cell.section === 'body') {
+                        data.cell.styles.textColor = data.cell.raw === 'CONFORME' ? [39, 174, 96] : [192, 57, 43];
+                        data.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            });
+
+            const finalY = doc.lastAutoTable.finalY + 15;
+            doc.setTextColor(0); doc.text("Signature du Collaborateur", 30, finalY);
+            if (l.sig) doc.addImage(l.sig, 'PNG', 30, finalY + 5, 45, 20);
+            doc.save(`Audit_OM_${l.mat}.pdf`);
+        }
+
+        // --- TOOLS ---
+        function initSignature() {
+            canvas = document.getElementById('sig-canvas'); sigCtx = canvas.getContext('2d');
+            canvas.width = canvas.offsetWidth;
+            let drawing = false;
+            const getPos = (e) => { const rect = canvas.getBoundingClientRect(); return { x: (e.clientX || e.touches?.[0].clientX) - rect.left, y: (e.clientY || e.touches?.[0].clientY) - rect.top }; };
+            canvas.onmousedown = canvas.ontouchstart = (e) => { drawing = true; sigCtx.beginPath(); const p = getPos(e); sigCtx.moveTo(p.x, p.y); if(e.touches) e.preventDefault(); };
+            canvas.onmousemove = canvas.ontouchmove = (e) => { if(!drawing) return; const p = getPos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); if(e.touches) e.preventDefault(); };
+            window.onmouseup = window.ontouchend = () => drawing = false;
+        }
+        function clearSig() { sigCtx.clearRect(0,0,canvas.width,canvas.height); }
+        function clearAllLogs() { if(confirm("Supprimer l'historique ?")) { localStorage.removeItem('OM_LOGS'); updateAdminDashboard(); } }
+        function exportFullBackup() {
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(DB)], {type:'application/json'})); a.download="questions_om.json"; a.click();
+        }
+        function importBackup(e) {
+            const r = new FileReader(); r.onload = (ev) => { DB = JSON.parse(ev.target.result); saveDB(); location.reload(); }; r.readAsText(e.target.files[0]);
+        }
+        function exportToCSV() {
+            const logs = JSON.parse(localStorage.getItem('OM_LOGS')) || [];
+            let csv = "\uFEFFDate;Matricule;Nom;Embauche;Session;Score\n" + logs.map(l => `${l.date};${l.mat};${l.nom};${l.embauche};Test n°${l.attempt};${l.score}%`).join("\n");
+            const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download = "Registre_OM.csv"; a.click();
+        }
+    </script>
+</body>
+</html>
