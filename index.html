@@ -16,6 +16,11 @@
         #home-view { height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #2c3e50, #000); color: white; text-align: center; }
         .main-btn { border: 2px solid var(--om-orange); padding: 40px; border-radius: 20px; width: 280px; cursor: pointer; margin: 15px; transition: 0.3s; background: rgba(255,255,255,0.05); }
         .main-btn:hover { background: var(--om-orange); }
+        
+        /* تصميم الـ QR Code */
+        #qr-container { background: white; padding: 15px; border-radius: 15px; margin: 20px 0; border: 5px solid var(--om-orange); display: inline-block; }
+        #qr-container p { color: #2c3e50; font-weight: bold; margin-top: 10px; font-size: 14px; margin-bottom: 0; }
+
         input, select { padding: 12px; border: 2px solid #ddd; border-radius: 10px; width: 100%; box-sizing: border-box; font-size: 16px; margin-top: 8px; }
         label { display: block; margin-top: 10px; font-weight: bold; font-size: 13px; color: var(--om-blue); }
         .q-card { background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; border-left: 8px solid var(--om-orange); }
@@ -26,7 +31,7 @@
         .badge { padding: 4px 8px; border-radius: 5px; font-weight: bold; color: white; font-size: 11px; }
         #sig-canvas { border: 2px dashed #ccc; width: 100%; height: 180px; background: #fff; touch-action: none; border-radius: 8px; }
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: flex; align-items: center; justify-content: center; }
-        .edit-row { background: #f9f9f9; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; border-radius: 5px; border: 1px solid #ddd; align-items: center; }
+        .edit-row { background: #f9f9f9; padding: 10px; margin-bottom: 5px; display: flex; justify-content: space-between; border-radius: 5px; border: 1px solid #ddd; align-items: center; color: #333; }
     </style>
 </head>
 <body>
@@ -34,6 +39,12 @@
     <div id="home-view">
         <img src="https://i.ibb.co/v4m0YmH/One-Mobility.png" height="80" style="margin-bottom: 20px;">
         <h1>SYSTEME D'ÉVALUATION</h1>
+        
+        <div id="qr-container">
+            <img id="qr-image" src="" alt="QR Code" style="width:180px; height:180px;">
+            <p>Scanner pour commencer / إمسح لبدء الإختبار</p>
+        </div>
+
         <div style="display:flex; flex-wrap:wrap; justify-content:center">
             <div class="main-btn" onclick="showSection('setup-view')"><h2>OPÉRATEUR</h2><p>Lancer un test</p></div>
             <div class="main-btn" onclick="openAdmin()"><h2>FORMATEUR</h2><p>Gestion & Stats</p></div>
@@ -54,7 +65,6 @@
     <div id="admin-view" class="hidden">
         <header><div style="font-weight:bold">Espace Formateur</div><button onclick="location.reload()">Quitter</button></header>
         <div class="container">
-            
             <div class="card">
                 <h3 style="margin-top:0; color:var(--om-orange)">Gestion des Questions</h3>
                 <div style="display:flex; gap:10px; margin-bottom:10px;">
@@ -83,9 +93,7 @@
                 <input type="text" id="fMat" onkeyup="updateAdminDashboard()" placeholder="Rechercher...">
                 <div style="overflow-x:auto">
                     <table>
-                        <thead>
-                            <tr><th>Date Test</th><th>Matricule</th><th>Nom</th><th>Embauche</th><th>Session</th><th>Score</th><th>Action</th></tr>
-                        </thead>
+                        <thead><tr><th>Date Test</th><th>Matricule</th><th>Nom</th><th>Embauche</th><th>Session</th><th>Score</th><th>Action</th></tr></thead>
                         <tbody id="admin-body"></tbody>
                     </table>
                 </div>
@@ -120,10 +128,18 @@
     </div>
 
     <script>
-        // --- DATABASE ---
         const defaultDB = { "Standard": [{f: "Exemple de question ?", a: "سؤال تجريبي ؟", r: true}] };
         let DB = JSON.parse(localStorage.getItem('OM_DB')) || defaultDB;
         let userAnswers = [], sigCtx, canvas, currentModule, timerInterval;
+
+        // توليد الـ QR Code عند فتح الصفحة
+        window.addEventListener('load', function() {
+            const qrImg = document.getElementById("qr-image");
+            if (qrImg) {
+                const currentUrl = window.location.href;
+                qrImg.src = "https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=" + encodeURIComponent(currentUrl);
+            }
+        });
 
         function saveDB() { localStorage.setItem('OM_DB', JSON.stringify(DB)); }
 
@@ -143,7 +159,6 @@
             } else { alert("Code incorrect"); }
         }
 
-        // --- EDIT QUESTIONS ---
         function renderEditList() {
             const t = document.getElementById('edit-theme-select').value;
             const container = document.getElementById('edit-list');
@@ -151,9 +166,10 @@
             container.innerHTML = DB[t].map((q, i) => `
                 <div class="edit-row">
                     <span style="font-size:12px">Q${i+1}: ${q.f.substring(0,25)}...</span>
-                    <button onclick="if(confirm('Supprimer?')){DB['${t}'].splice(${i},1); saveDB(); renderEditList();}" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold">X</button>
+                    <button onclick="if(confirm('Supprimer cette question ?')){DB['${t}'].splice(${i},1); saveDB(); renderEditList();}" style="color:red; border:none; background:none; cursor:pointer; font-weight:bold">X</button>
                 </div>`).join('');
         }
+
         function addNewQ() {
             const t = document.getElementById('edit-theme-select').value;
             const f = document.getElementById('new-q-fr').value;
@@ -164,7 +180,6 @@
             document.getElementById('new-q-fr').value=""; document.getElementById('new-q-ar').value="";
         }
 
-        // --- TEST LOGIC ---
         function startQuiz() {
             const m = document.getElementById('mat').value;
             const n = document.getElementById('nom').value;
@@ -211,7 +226,7 @@
                 sig: canvas.toDataURL()
             });
             localStorage.setItem('OM_LOGS', JSON.stringify(logs));
-            alert("Évaluation terminée avec succès !"); location.reload();
+            alert("Évaluation terminée !"); location.reload();
         }
 
         function updateAdminDashboard() {
@@ -224,28 +239,26 @@
                 <td><button onclick="downloadPDF_Full(${logs.indexOf(l)})">PDF</button></td></tr>`).join('');
         }
 
-        // --- PDF ORGANISÉ POUR AUDIT ---
+        // الحفاظ التام على وظيفة الـ PDF الأصلية
         function downloadPDF_Full(idx) {
-            const l = JSON.parse(localStorage.getItem('OM_LOGS'))[idx];
+            const logs = JSON.parse(localStorage.getItem('OM_LOGS')) || [];
+            const l = logs[idx];
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-
-            doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(230, 126, 34);
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(22); doc.setTextColor(230, 126, 34);
             doc.text("ONE MOBILITY", 105, 20, { align: "center" });
             doc.setFontSize(14); doc.setTextColor(44, 62, 80); doc.text("FICHE D'ÉVALUATION DES COMPÉTENCES", 105, 30, { align: "center" });
             doc.line(20, 35, 190, 35);
-
             doc.setFontSize(11); doc.setTextColor(0);
             doc.text(`Candidat : ${l.nom}`, 20, 45);
             doc.text(`Matricule : ${l.mat}`, 20, 52);
             doc.text(`Date d'embauche : ${l.embauche}`, 20, 59);
             doc.text(`Date du Test : ${l.date}`, 130, 45);
             doc.setTextColor(230, 126, 34); doc.text(`Test :  n°${l.attempt}`, 130, 52);
-            
             const isOk = l.score >= 75;
             doc.setTextColor(isOk ? 39 : 192, isOk ? 174 : 57, isOk ? 96 : 43);
             doc.text(`Score Final : ${l.score}% (${l.status})`, 130, 59);
-
             doc.autoTable({
                 startY: 68,
                 head: [['#', 'Critères d\'évaluation', 'Réponse', 'Résultat']],
@@ -258,14 +271,12 @@
                     }
                 }
             });
-
             const finalY = doc.lastAutoTable.finalY + 15;
             doc.setTextColor(0); doc.text("Signature du Collaborateur", 30, finalY);
             if (l.sig) doc.addImage(l.sig, 'PNG', 30, finalY + 5, 45, 20);
             doc.save(`Audit_OM_${l.mat}.pdf`);
         }
 
-        // --- TOOLS ---
         function initSignature() {
             canvas = document.getElementById('sig-canvas'); sigCtx = canvas.getContext('2d');
             canvas.width = canvas.offsetWidth;
@@ -276,9 +287,15 @@
             window.onmouseup = window.ontouchend = () => drawing = false;
         }
         function clearSig() { sigCtx.clearRect(0,0,canvas.width,canvas.height); }
-        function clearAllLogs() { if(confirm("Supprimer l'historique ?")) { localStorage.removeItem('OM_LOGS'); updateAdminDashboard(); } }
+
+        function clearAllLogs() { 
+            if(confirm("Confirmer la suppression de TOUT l'historique ?")) {
+                localStorage.removeItem('OM_LOGS'); updateAdminDashboard(); 
+            }
+        }
         function exportFullBackup() {
-            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(DB)], {type:'application/json'})); a.download="questions_om.json"; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(DB)], {type:'application/json'}));
+            a.download="questions_om.json"; a.click();
         }
         function importBackup(e) {
             const r = new FileReader(); r.onload = (ev) => { DB = JSON.parse(ev.target.result); saveDB(); location.reload(); }; r.readAsText(e.target.files[0]);
